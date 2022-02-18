@@ -13,8 +13,5 @@ public class AustraliaColoringArc extends Arc<String, String>{
         this.place1 = place1;
         this.place2 = place2;
     }
-    @Override
-    public boolean satisfied(Map<String, String> assignment) {
-        return false;
-    }
+
 }

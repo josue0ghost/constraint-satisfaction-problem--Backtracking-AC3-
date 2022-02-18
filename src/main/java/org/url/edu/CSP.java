@@ -45,23 +45,15 @@ public class CSP <V, D>{
     }
 
     public void addArc(V place1, V place2) {
-        Arc<V, D> newArc = new Arc<V, D>(place1, place2) {
-            @Override
-            public boolean satisfied(Map<V, D> assignment) {
-                return false;
-            }
-        };
+        Arc<V, D> newArc = new Arc<V, D>(place1, place2) {};
 
         this.arcs.add(newArc);
 
-        Arc<V, D> reverseArc = new Arc<V, D>(place2, place1) {
-            @Override
-            public boolean satisfied(Map<V, D> assignment) {
-                return false;
-            }
-        };
+        /*
+        Arc<V, D> reverseArc = new Arc<V, D>(place2, place1) {};
 
         this.arcs.add(reverseArc);
+        */
     }
 
     public boolean consistent(V variable, Map<V,D> assignment) {
@@ -74,10 +66,11 @@ public class CSP <V, D>{
     }
 
     public Map<V, D> backtrack() {
-        return backtrack(new HashMap<>());
+        var tempDomain = this.domains;
+        return backtrack(new HashMap<>(), tempDomain);
     }
 
-    public Map<V, D> backtrack(Map<V, D> assignment) {
+    public Map<V, D> backtrack(Map<V, D> assignment, Map<V, List<D>> localDomain) {
         // If each variable has a value
         // end of solution
         if (assignment.size() == variables.size()) {
@@ -89,7 +82,9 @@ public class CSP <V, D>{
             .filter(v -> !assignment.containsKey(v)) // first one that is not contained in assignment
             .findFirst().get();
 
-        for (var value: domains.get(unassigned)) {
+
+        var unassignedDomain = localDomain.get(unassigned);
+        for (var value: unassignedDomain) {
             // Processing this variable and this domian
             System.out.println("Variable: " + unassigned + ", dominio: " + value);
 
@@ -100,14 +95,14 @@ public class CSP <V, D>{
             // 2. Test (aka assign a value)
             localAssignment.put(unassigned, value);
 
-            domains.put(unassigned, List.of(value));
+            localDomain.put(unassigned, List.of(value));
             // 3. Verify assignation consistency
-            if (consistent(unassigned, localAssignment) && ac3()){
+            if (consistent(unassigned, localAssignment) && ac3(localDomain)){
 
                 // Unassigned node is now assigned, so its domains reduces to 1 element
-                domains.put(unassigned, domains.get(unassigned).stream().filter(v -> v.equals(value)).collect(Collectors.toList()));
+                localDomain.put(unassigned, localDomain.get(unassigned).stream().filter(v -> v.equals(value)).collect(Collectors.toList()));
 
-                Map<V, D> result = backtrack(localAssignment);
+                Map<V, D> result = backtrack(localAssignment, localDomain);
 
                 if (result != null) {
                     return  result;
@@ -119,14 +114,15 @@ public class CSP <V, D>{
         return null;
     }
 
-    public Boolean ac3() {
+    // arc-consistent
+    public Boolean ac3(Map<V, List<D>> localDomain) {
         Queue<Arc<V, D>> arcs = new ArrayDeque<>(this.arcs);
 
         while (!arcs.isEmpty()) {
             var arc = arcs.remove();
             
-            if (revise(arc)) {
-                if (domains.get(arc.tail).isEmpty()) {
+            if (revise(arc, localDomain)) {
+                if (localDomain.get(arc.tail).isEmpty()) {
                     print("El dominio de la cola esta vacio");
                     return false;
                 }
@@ -141,11 +137,11 @@ public class CSP <V, D>{
         return true;
     }
 
-    public Boolean revise(Arc<V, D> arc) {
+    public Boolean revise(Arc<V, D> arc, Map<V, List<D>> localDomain) {
         Boolean revised = false;
 
-        var headDomains = domains.get(arc.head);
-        var tailDomains = domains.get(arc.tail);
+        var headDomains = localDomain.get(arc.head);
+        var tailDomains = localDomain.get(arc.tail);
 
         for (var tailVariable : tailDomains) {
             // if no value in tailDomain is satisfied by any other value from headDomain
@@ -154,7 +150,7 @@ public class CSP <V, D>{
                 print("Se eliminara " + tailVariable + " de " + tailDomains.toString());
 
                 //tailDomains.remove(tailVariable);
-                domains.put(arc.tail, tailDomains.stream().filter(v -> !v.equals(tailVariable)).collect(Collectors.toList()));
+                localDomain.put(arc.tail, tailDomains.stream().filter(v -> !v.equals(tailVariable)).collect(Collectors.toList()));
                 revised = true;
             }
         }

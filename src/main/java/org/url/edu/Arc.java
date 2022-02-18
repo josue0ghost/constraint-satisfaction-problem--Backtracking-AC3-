@@ -12,5 +12,4 @@ public abstract class Arc <V, D> {
         this.head = head;
     }
 
-    public abstract boolean satisfied(Map<V, D> assignment);
 }
